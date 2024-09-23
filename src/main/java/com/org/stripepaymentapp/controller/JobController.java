@@ -37,4 +37,21 @@ public class JobController {
         }
     }
 
+    @PostMapping("/{jobId}/cancel")
+    public String cancelPayment(@PathVariable String jobId) throws Exception {
+        Optional<Job> job = jobRepository.findById(jobId);
+        if (job.isPresent()) {
+            Job jobRequest = job.get();
+            // Assuming payment has been made, transfer funds to the service provider
+            stripeService.transferAmountToServiceProvider(jobRequest.getServiceProviderId(), jobRequest.getAmount());
+            jobRequest.setStatus("SUCCESS");
+            jobRepository.save(jobRequest);
+            return "Payment approved and transferred";
+        } else {
+            throw new Exception("Job not found");
+        }
+    }
+
+
+
 }

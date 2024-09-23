@@ -46,28 +46,17 @@ public class StripeService {
 
     public String createPaymentLink(PaymentLinkRequest paymentLinkRequest) throws Exception {
 
-        SessionCreateParams params =
-                SessionCreateParams.builder()
-                        .setMode(SessionCreateParams.Mode.PAYMENT)
-                        .addLineItem(
-                                SessionCreateParams.LineItem.builder()
-                                        .setPrice("price_1Py25KIhwUT0ZWX42Fpet9ZY")
-                                        .setQuantity(1L)
-                                        .build()
-                        )
-                        .setPaymentIntentData(
-                                SessionCreateParams.PaymentIntentData.builder()
-                                        .setApplicationFeeAmount(123L)
-                                        .setTransferData(
-                                                SessionCreateParams.PaymentIntentData.TransferData.builder()
-                                                        .setDestination("acct_1Pxof7IMEeLOr8zc")
-                                                        .build()
-                                        )
-                                        .build()
-                        )
-                        .setSuccessUrl("https://example.com/success")
-                        .setCancelUrl("https://example.com/cancel")
-                        .build();
+        SessionCreateParams params = SessionCreateParams.builder()
+                .setMode(SessionCreateParams.Mode.PAYMENT)
+                .addLineItem(
+                        SessionCreateParams.LineItem.builder()
+                                .setPrice("price_1Py25KIhwUT0ZWX42Fpet9ZY") // Replace with your price ID
+                                .setQuantity(1L)
+                                .build()
+                )
+                .setSuccessUrl("https://example.com/success")
+                .setCancelUrl("https://example.com/cancel")
+                .build();
 
         Session session = Session.create(params);
         return session.getUrl();
