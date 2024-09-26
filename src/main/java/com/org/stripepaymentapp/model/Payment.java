@@ -8,18 +8,18 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Document(collection = "payments")
 public class Payment {
     @Id
-    private String id;
+    private long id;
     private String requestedJobId;
     private double amount;
 
     private String status; // HELD, CAPTURED, REFUNDED
     private String stripeTransferId; // For payout tracking
 
-    public String getId() {
+    public long getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(long id) {
         this.id = id;
     }
 

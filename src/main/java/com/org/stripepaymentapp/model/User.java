@@ -10,13 +10,13 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Document(collection = "users")
 public class User {
     @Id
-    private String id;
+    private long id;
     private String email;
     private String name;
     private String role; // USER or SERVICE_PROVIDER
     private String stripeId;
 
-    public String getId() {
+    public long getId() {
         return id;
     }
 
@@ -29,7 +29,7 @@ public class User {
     }
 
 
-    public void setId(String id) {
+    public void setId(long id) {
         this.id = id;
     }
 

@@ -1,44 +1,36 @@
 package com.org.stripepaymentapp.dto;
 
-import java.util.List;
 
 public class PaymentLinkRequest {
-    private List<String> lineItems; // List of product IDs, or item details
-    private Long amount; // Amount in cents
-    private String currency;
 
-    private int quantity;
+    private String priceId;
+    private String serviceProviderId;
+    private String customerId;
 
-    // Getters and setters
-    public List<String> getLineItems() {
-        return lineItems;
+    public String getPriceId() {
+        return priceId;
     }
 
-    public void setLineItems(List<String> lineItems) {
-        this.lineItems = lineItems;
+    public void setPriceId(String priceId) {
+        this.priceId = priceId;
     }
 
-    public Long getAmount() {
-        return amount;
+    public String getServiceProviderId() {
+        return serviceProviderId;
     }
 
-    public int getQuantity() {
-        return quantity;
+    public void setServiceProviderId(String serviceProviderId) {
+        this.serviceProviderId = serviceProviderId;
     }
 
-    public void setQuantity(int quantity) {
-        this.quantity = quantity;
+    public String getCustomerId() {
+        return customerId;
     }
 
-    public void setAmount(Long amount) {
-        this.amount = amount;
+    public void setCustomerId(String customerId) {
+        this.customerId = customerId;
     }
 
-    public String getCurrency() {
-        return currency;
-    }
 
-    public void setCurrency(String currency) {
-        this.currency = currency;
-    }
+
 }
