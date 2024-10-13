@@ -4,8 +4,10 @@ package com.org.stripepaymentapp.controller;
 
 import com.org.stripepaymentapp.dto.ServiceRequest;
 import com.org.stripepaymentapp.model.Job;
+import com.org.stripepaymentapp.model.Payment;
 import com.org.stripepaymentapp.model.Service;
 import com.org.stripepaymentapp.repository.JobRepository;
+import com.org.stripepaymentapp.repository.PaymentRepository;
 import com.org.stripepaymentapp.service.StripeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -25,21 +27,47 @@ public class JobController {
     @Autowired
     private JobRepository jobRepository;
 
+    @Autowired
+    private PaymentRepository paymentRepository;
+
 
     @PostMapping("/{jobId}/approve")
     public String approveJobPayment(@PathVariable String jobId) throws Exception {
-        Optional<Job> job = jobRepository.findById(jobId);
-        if (job.isPresent()) {
-            Job jobRequest = job.get();
-            // Assuming payment has been made, transfer funds to the service provider
-            stripeService.transferAmountToServiceProvider(jobRequest.getServiceProviderId(), jobRequest.getAmount());
-            jobRequest.setStatus("SUCCESS");
-            jobRepository.save(jobRequest);
+        Optional<Payment> paymentOptional = paymentRepository.findByJobId(jobId);
+        Optional<Job> jobRequest = jobRepository.findById(jobId);
+
+        if(jobRequest.isPresent()){
+            Job job= jobRequest.get();
+            if (job.getPaymentStatus().equalsIgnoreCase("ESCROW")) {
+                stripeService.transferAmountToServiceProvider(job.getServiceProviderId(), job.getAmount());
+            }
+        } else {
+        throw new Exception("Job not found");
+        }
+
+        if (paymentOptional.isPresent()) {
+            Payment payment = paymentOptional.get();
+            payment.setStatus("SUCCESS");
+            paymentRepository.save(payment);
             return "Payment approved and transferred";
         } else {
             throw new Exception("Job not found");
         }
     }
+
+    @PostMapping("/{jobId}/complete")
+    public String completeJob(@PathVariable String jobId) throws Exception {
+        Optional<Job> job = jobRepository.findById(jobId);
+        if (job.isPresent()) {
+            Job jobRequest = job.get();
+            jobRequest.setStatus("COMPLETED");
+            jobRepository.save(jobRequest);
+            return "Job completed Successfully";
+        } else {
+            throw new Exception("Job not found");
+        }
+    }
+
 
     @PostMapping("/{jobId}/cancel")
     public String cancelPayment(@PathVariable String jobId) throws Exception {
@@ -59,7 +87,7 @@ public class JobController {
     @GetMapping("/")
     public ResponseEntity<List<Job>> getJobsForCustomer(@RequestParam long customerID) {
         try {
-            List<Job> jobList = jobRepository.findByServiceId(customerID);
+            List<Job> jobList = jobRepository.findByCustomerId(customerID);
             return ResponseEntity.ok(jobList);
         } catch (Exception e) {
             // Log the error for debugging purposes

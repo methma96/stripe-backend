@@ -10,7 +10,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 public class Job {
 
     @Id
-    private long id;
+    private String id;
     private String priceId;
     private String serviceProviderId;
 
@@ -19,11 +19,23 @@ public class Job {
     private double amount;
     private String status; // PENDING, IN_PROGRESS, COMPLETED, DISPUTE
     private String paymentStatus; // ESCROW, CAPTURED, REFUNDED
-    public long getId() {
+
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+
+    public String getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(String id) {
         this.id = id;
     }
 

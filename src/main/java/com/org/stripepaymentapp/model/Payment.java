@@ -8,27 +8,39 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Document(collection = "payments")
 public class Payment {
     @Id
-    private long id;
-    private String requestedJobId;
+    private String id;
+    private String sessionId;
     private double amount;
+
+    private String jobId;
 
     private String status; // HELD, CAPTURED, REFUNDED
     private String stripeTransferId; // For payout tracking
 
-    public long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
-    public String getRequestedJobId() {
-        return requestedJobId;
+
+    public String getJobId() {
+        return jobId;
     }
 
-    public void setRequestedJobId(String requestedJobId) {
-        this.requestedJobId = requestedJobId;
+    public void setJobId(String jobId) {
+        this.jobId = jobId;
+    }
+
+
+    public String getSessionId() {
+        return sessionId;
+    }
+
+    public void setSessionId(String sessionId) {
+        this.sessionId = sessionId;
     }
 
     public double getAmount() {
