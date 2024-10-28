@@ -39,7 +39,9 @@ public class JobController {
         if(jobRequest.isPresent()){
             Job job= jobRequest.get();
             if (job.getPaymentStatus().equalsIgnoreCase("ESCROW")) {
-                stripeService.transferAmountToServiceProvider(job.getServiceProviderId(), job.getAmount());
+                stripeService.transferAmountToServiceProvider(job.getServiceProviderId(), job.getAmount(), job.getCurrency());
+                job.setPaymentStatus("SUCCESS");
+                jobRepository.save(job);
             }
         } else {
         throw new Exception("Job not found");
@@ -75,7 +77,7 @@ public class JobController {
         if (job.isPresent()) {
             Job jobRequest = job.get();
             // Assuming payment has been made, transfer funds to the service provider
-            stripeService.transferAmountToServiceProvider(jobRequest.getServiceProviderId(), jobRequest.getAmount());
+            stripeService.transferAmountToServiceProvider(jobRequest.getServiceProviderId(), jobRequest.getAmount(), jobRequest.getCurrency());
             jobRequest.setStatus("SUCCESS");
             jobRepository.save(jobRequest);
             return "Payment approved and transferred";

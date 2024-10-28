@@ -1,15 +1,20 @@
 package com.org.stripepaymentapp.service;
 
+import com.org.stripepaymentapp.dto.ConnectAccountRequest;
 import com.org.stripepaymentapp.dto.PaymentLinkRequest;
 import com.org.stripepaymentapp.model.Job;
 import com.org.stripepaymentapp.model.Payment;
+import com.org.stripepaymentapp.model.SessionInfo;
 import com.org.stripepaymentapp.repository.JobRepository;
 import com.org.stripepaymentapp.repository.PaymentRepository;
+import com.org.stripepaymentapp.repository.SessionInfoRepository;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.*;
 import com.stripe.model.checkout.Session;
 
+import com.stripe.param.AccountCreateParams;
+import com.stripe.param.AccountLinkCreateParams;
 import com.stripe.param.checkout.SessionCreateParams;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.PostConstruct;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 
 @Service
@@ -41,6 +47,9 @@ public class StripeService {
 
     @Autowired
     private PaymentRepository paymentRepository;
+
+    @Autowired
+    private SessionInfoRepository sessionInfoRepository;
 
     @PostConstruct
     public void init() {
@@ -74,11 +83,63 @@ public class StripeService {
 
     }
 
+    public String createConnectedAccount(ConnectAccountRequest connectedAccountRequest){
+        String accountId ="";
+        try {
+            // Define the parameters for the connected account
+            AccountCreateParams params = AccountCreateParams.builder()
+                    .setType(AccountCreateParams.Type.EXPRESS)  // For Standard accounts
+                    .setCountry(connectedAccountRequest.getCountryCode())  // The country for the connected account
+                    .setEmail(connectedAccountRequest.getEmail())  // Email of the connected account
+                    .build();
+
+            // Generate a session ID (UUID or any unique identifier)
+            String sessionId = UUID.randomUUID().toString();
+
+// Save account ID and session ID to the database
+
+
+// Set up the return URL with the session ID as a query parameter
+            String returnUrl = "https://example.com/return?session_id=" + sessionId;
+
+            // Create the connected account
+            Account account = Account.create(params);
+//            accountId = account.getId();
+
+            SessionInfo sessionInfo=new SessionInfo();
+            sessionInfo.setAccountId(account.getId());
+            sessionInfo.setSessionId(sessionId);
+            sessionInfo.setJobId(connectedAccountRequest.getJobId());
+
+            sessionInfoRepository.save(sessionInfo);
+
+            // Step 2: Create an AccountLink (the link for the user to complete their account setup)
+            AccountLinkCreateParams accountLinkParams = AccountLinkCreateParams.builder()
+                    .setAccount(account.getId())
+                    .setRefreshUrl("https://example.com/reauth")  // URL for users to return if the flow is interrupted
+                    .setReturnUrl(returnUrl)   // Redirect URL after user completes the flow
+                    .setType(AccountLinkCreateParams.Type.ACCOUNT_ONBOARDING)
+                    .build();
+
+            AccountLink accountLink = AccountLink.create(accountLinkParams);
+            accountId= accountLink.getUrl();
+
+            // Print the account ID of the connected account
+            System.out.println("Connected account created with ID: " + account.getId());
+
+        } catch (StripeException e) {
+            e.printStackTrace();
+        }
+
+        return accountId;
+    }
+
     private void updatePaymentInfo(PaymentLinkRequest paymentLinkRequest, Session session, String jobId){
         Payment payment=new Payment();
         payment.setSessionId(session.getId());
         payment.setAmount(paymentLinkRequest.getAmount());
         payment.setStatus("PENDING");
+        payment.setCurrency(paymentLinkRequest.getCurrency());
         payment.setJobId(jobId);
         paymentRepository.save(payment);
 
@@ -93,6 +154,7 @@ public class StripeService {
         newJob.setPaymentStatus("PENDING");
         newJob.setAmount(paymentLinkRequest.getAmount());
         newJob.setName(paymentLinkRequest.getJobName());
+        newJob.setCurrency(paymentLinkRequest.getCurrency());
         jobRepository.save(newJob);
 
         return newJob.getId();
@@ -101,10 +163,10 @@ public class StripeService {
 
 
 
-    public Transfer transferAmountToServiceProvider(String connectedAccountId, double amount) throws Exception {
+    public Transfer transferAmountToServiceProvider(String connectedAccountId, double amount, String currency) throws Exception {
         Map<String, Object> transferParams = new HashMap<>();
-        transferParams.put("amount", (int) (amount * 100)); // Amount in cents
-        transferParams.put("currency", "usd");
+        transferParams.put("amount",  (amount * 0.8)); // Amount in cents
+        transferParams.put("currency", currency);
         transferParams.put("destination", connectedAccountId);
 
         return Transfer.create(transferParams);

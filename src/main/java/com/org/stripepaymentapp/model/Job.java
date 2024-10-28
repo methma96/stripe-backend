@@ -14,6 +14,8 @@ public class Job {
     private String priceId;
     private String serviceProviderId;
 
+
+
     private long customerId;
     private String description;
     private double amount;
@@ -21,6 +23,17 @@ public class Job {
     private String paymentStatus; // ESCROW, CAPTURED, REFUNDED
 
     private String name;
+
+    private String currency;
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
 
     public String getName() {
         return name;

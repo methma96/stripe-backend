@@ -1,6 +1,10 @@
 package com.org.stripepaymentapp.controller;
 
 import com.org.stripepaymentapp.dto.PaymentLinkRequest;
+import com.org.stripepaymentapp.model.Job;
+import com.org.stripepaymentapp.model.SessionInfo;
+import com.org.stripepaymentapp.repository.JobRepository;
+import com.org.stripepaymentapp.repository.SessionInfoRepository;
 import com.org.stripepaymentapp.service.PaymentService;
 import com.org.stripepaymentapp.service.StripeService;
 import com.stripe.model.checkout.Session;
@@ -10,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -22,6 +27,12 @@ public class PaymentController {
 
     @Autowired
     private PaymentService paymentService;
+
+    @Autowired
+    private SessionInfoRepository sessionInfoRepository;
+
+    @Autowired
+    private JobRepository jobRepository;
 
     @PostMapping("/create-payment-link")
     public ResponseEntity<Map<String, String>> createPaymentLink(@RequestBody PaymentLinkRequest paymentLinkRequest) {
@@ -78,7 +89,48 @@ public class PaymentController {
         }
     }
 
+    @PostMapping("/refund")
+    public ResponseEntity<Map<String, Object>> refundPayment(@RequestBody Map<String, String> request) {
+        String sessionId = request.get("sessionId");
+        Map<String, Object> response = new HashMap<>();
 
+        try {
+            // Retrieve the session from Stripe to verify the payment
+            Optional<SessionInfo> sessionInfoList= sessionInfoRepository.findBySessionId(sessionId);
 
+            if(sessionInfoList.isPresent()){
+                SessionInfo sessionInfo= sessionInfoList.get();
+                Optional<Job> jobRequest = jobRepository.findById(sessionInfo.getJobId());
+
+                if(jobRequest.isPresent()){
+                    Job job= jobRequest.get();
+                    stripeService.transferAmountToServiceProvider(sessionInfo.getAccountId(), job.getAmount(), job.getCurrency());
+                    job.setStatus("CANCELLED");
+                    if (job.getPaymentStatus().equalsIgnoreCase("ESCROW")) {
+                        job.setPaymentStatus("REFUNDED");
+                    }
+
+                    if(job.getPaymentStatus().equalsIgnoreCase("SUCCESS")){
+                        job.setPaymentStatus("DISPUTED");
+                    }
+
+                    jobRepository.save(job);
+
+                } else {
+                    return ResponseEntity.ok(response);
+                }
+
+                return ResponseEntity.ok(response);
+            } else {
+                throw new Exception("Job not found");
+            }
+
+        } catch (Exception e) {
+            // Prepare error response
+            response.put("status", "error");
+            response.put("message", "Error verifying payment: " + e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
 
 }

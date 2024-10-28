@@ -18,6 +18,15 @@ public class Service {
 
     private double amount;
 
+    private String currency;
+
+    public String getCurrency() {
+        return currency;
+    }
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
     public String getId() {
         return id;
     }
