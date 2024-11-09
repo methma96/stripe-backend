@@ -13,8 +13,7 @@ import com.stripe.exception.StripeException;
 import com.stripe.model.*;
 import com.stripe.model.checkout.Session;
 
-import com.stripe.param.AccountCreateParams;
-import com.stripe.param.AccountLinkCreateParams;
+import com.stripe.param.*;
 import com.stripe.param.checkout.SessionCreateParams;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.PostConstruct;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -83,49 +83,74 @@ public class StripeService {
 
     }
 
-    public String createConnectedAccount(ConnectAccountRequest connectedAccountRequest){
-        String accountId ="";
+    public String refundPayment(String chargeId, double amount){
+
+        String refundId = "";
+        long amountInCents = (long) (amount * 100*0.8);  // Converts to cents
         try {
-            // Define the parameters for the connected account
+            // Define refund parameters
+            RefundCreateParams refundParams = RefundCreateParams.builder()
+                    .setCharge(chargeId)     // ID of the charge to refund
+                    .setAmount(amountInCents)       // Amount to refund (in cents)
+                    .build();
+
+            // Create the refund, which goes back to the customer’s original payment method
+            Refund refund = Refund.create(refundParams);
+            refundId = refund.getId();
+            System.out.println("Refund created with ID: " + refundId);
+
+        } catch (StripeException e) {
+            e.printStackTrace();
+        }
+        return refundId;
+    }
+
+    public String reverseTransfer(String transferId , double amount) {
+        String reversalId = "";
+        long amountInCents = (long) (amount * 100*0.8);  // Converts to cents
+        try {
+            // Retrieve the original transfer
+            Transfer transfer = Transfer.retrieve(transferId);
+
+            TransferReversalCollectionCreateParams params =
+                    TransferReversalCollectionCreateParams.builder().setAmount(amountInCents).build();
+            TransferReversal transferReversal = transfer.getReversals().create(params);
+            reversalId = transferReversal.getId();
+
+        } catch (StripeException e) {
+            e.printStackTrace();
+        }
+        return reversalId;
+    }
+
+    public String createConnectedAccount(ConnectAccountRequest connectedAccountRequest){
+        String accountId = "";
+        try {
+            // Step 1: Create the connected account (already done in your method)
             AccountCreateParams params = AccountCreateParams.builder()
-                    .setType(AccountCreateParams.Type.EXPRESS)  // For Standard accounts
-                    .setCountry(connectedAccountRequest.getCountryCode())  // The country for the connected account
-                    .setEmail(connectedAccountRequest.getEmail())  // Email of the connected account
+                    .setType(AccountCreateParams.Type.EXPRESS)
+                    .setCountry(connectedAccountRequest.getCountryCode())
+                    .setDefaultCurrency(connectedAccountRequest.getCurrency())
+                    .setEmail(connectedAccountRequest.getEmail())
+                    .setCapabilities(
+                            AccountCreateParams.Capabilities.builder()
+                                    .setCardPayments(
+                                            AccountCreateParams.Capabilities.CardPayments.builder()
+                                                    .setRequested(true)
+                                                    .build()
+                                    )
+                                    .setTransfers(
+                                            AccountCreateParams.Capabilities.Transfers.builder().setRequested(true).build()
+                                    )
+                                    .build()
+                    )
                     .build();
 
-            // Generate a session ID (UUID or any unique identifier)
-            String sessionId = UUID.randomUUID().toString();
-
-// Save account ID and session ID to the database
-
-
-// Set up the return URL with the session ID as a query parameter
-            String returnUrl = "https://example.com/return?session_id=" + sessionId;
-
-            // Create the connected account
             Account account = Account.create(params);
-//            accountId = account.getId();
+            accountId = account.getId();
 
-            SessionInfo sessionInfo=new SessionInfo();
-            sessionInfo.setAccountId(account.getId());
-            sessionInfo.setSessionId(sessionId);
-            sessionInfo.setJobId(connectedAccountRequest.getJobId());
-
-            sessionInfoRepository.save(sessionInfo);
-
-            // Step 2: Create an AccountLink (the link for the user to complete their account setup)
-            AccountLinkCreateParams accountLinkParams = AccountLinkCreateParams.builder()
-                    .setAccount(account.getId())
-                    .setRefreshUrl("https://example.com/reauth")  // URL for users to return if the flow is interrupted
-                    .setReturnUrl(returnUrl)   // Redirect URL after user completes the flow
-                    .setType(AccountLinkCreateParams.Type.ACCOUNT_ONBOARDING)
-                    .build();
-
-            AccountLink accountLink = AccountLink.create(accountLinkParams);
-            accountId= accountLink.getUrl();
-
-            // Print the account ID of the connected account
-            System.out.println("Connected account created with ID: " + account.getId());
+            // Print or log successful setup
+            System.out.println("Connected account activated with ID: " + account.getId() + " and bank account ID: ");
 
         } catch (StripeException e) {
             e.printStackTrace();
@@ -133,6 +158,52 @@ public class StripeService {
 
         return accountId;
     }
+
+    public Map<String, Object> deleteAccounts(List<String> accountIds) {
+        Stripe.apiKey = stripeApiKey;
+        Map<String, Object> result = new HashMap<>();
+        int successCount = 0;
+        int failureCount = 0;
+
+        for (String accountId : accountIds) {
+            try {
+                Account account = Account.retrieve(accountId);
+                account.delete();
+                successCount++;
+            } catch (StripeException e) {
+                failureCount++;
+                result.put(accountId, "Failed to delete: " + e.getMessage());
+            }
+        }
+
+        result.put("summary", Map.of("deleted", successCount, "failed", failureCount));
+        return result;
+    }
+
+
+
+    public String activateAccount(String accountId) throws StripeException {
+        Map<String, Object> params = new HashMap<>();
+        params.put("account", accountId);
+
+        Map<String, Object> payments = new HashMap<>();
+        payments.put("enabled", true);
+
+        Map<String, Object> features = new HashMap<>();
+        features.put("refund_management", true);
+        features.put("dispute_management", true);
+        features.put("capture_payments", true);
+        payments.put("features", features);
+
+        Map<String, Object> components = new HashMap<>();
+        components.put("payments", payments);
+        params.put("components", components);
+
+        AccountSession accountSession = AccountSession.create(params);
+
+        return accountSession.getClientSecret();
+    }
+
 
     private void updatePaymentInfo(PaymentLinkRequest paymentLinkRequest, Session session, String jobId){
         Payment payment=new Payment();
@@ -163,12 +234,21 @@ public class StripeService {
 
 
 
-    public Transfer transferAmountToServiceProvider(String connectedAccountId, double amount, String currency) throws Exception {
+    public String transferAmountToServiceProvider(String connectedAccountId, double amount, String currency) throws Exception {
+        // Convert the amount to cents (Stripe expects the amount in the smallest currency unit)
+        long amountInCents = (long) (amount * 100*0.8);  // Converts to cents
+
         Map<String, Object> transferParams = new HashMap<>();
-        transferParams.put("amount",  (amount * 0.8)); // Amount in cents
+        transferParams.put("amount", amountInCents); // Amount in cents
         transferParams.put("currency", currency);
         transferParams.put("destination", connectedAccountId);
 
-        return Transfer.create(transferParams);
+        // Perform the transfer
+        Transfer transfer = Transfer.create(transferParams);
+
+        // Get and return the transfer ID
+        String transferId = transfer.getId();
+        System.out.println("Transfer created with ID: " + transferId);
+        return transferId;
     }
 }

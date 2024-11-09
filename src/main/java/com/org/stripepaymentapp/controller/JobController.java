@@ -39,22 +39,28 @@ public class JobController {
         if(jobRequest.isPresent()){
             Job job= jobRequest.get();
             if (job.getPaymentStatus().equalsIgnoreCase("ESCROW")) {
-                stripeService.transferAmountToServiceProvider(job.getServiceProviderId(), job.getAmount(), job.getCurrency());
+                String transferId= stripeService.transferAmountToServiceProvider(job.getServiceProviderId(), job.getAmount(), job.getCurrency());
                 job.setPaymentStatus("SUCCESS");
                 jobRepository.save(job);
+
+                if (paymentOptional.isPresent()) {
+                    Payment payment = paymentOptional.get();
+                    payment.setStatus("SUCCESS");
+                    payment.setStripeTransferId(transferId);
+                    paymentRepository.save(payment);
+                    return "Payment approved and transferred";
+                } else {
+                    throw new Exception("Job not found");
+                }
+
+            }else{
+                throw new Exception("Job not found");
             }
         } else {
         throw new Exception("Job not found");
         }
 
-        if (paymentOptional.isPresent()) {
-            Payment payment = paymentOptional.get();
-            payment.setStatus("SUCCESS");
-            paymentRepository.save(payment);
-            return "Payment approved and transferred";
-        } else {
-            throw new Exception("Job not found");
-        }
+
     }
 
     @PostMapping("/{jobId}/complete")

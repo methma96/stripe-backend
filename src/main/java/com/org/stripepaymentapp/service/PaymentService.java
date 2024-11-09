@@ -28,13 +28,14 @@ public class PaymentService {
     @Autowired
     private JobRepository jobRepository;
 
-    public void updatePaymentStatus(String sessionId) {
+    public void updatePaymentStatus(String sessionId, String chargeId) {
         Optional<Payment> paymentOpt = paymentRepository.findBySessionId(sessionId);
         Payment payment;
 
         if (paymentOpt.isPresent()) {
             payment = paymentOpt.get();
             payment.setStatus("ESCROW");
+            payment.setChargeId(chargeId);
             paymentRepository.save(payment);
 
             Optional<Job> jobOptional = jobRepository.findById(payment.getJobId());
@@ -47,5 +48,6 @@ public class PaymentService {
             }
         }
     }
+
 
 }

@@ -22,12 +22,12 @@ public class UserController {
     @PostMapping("/create-connected-account")
     public ResponseEntity<Map<String, String>> createPaymentLink(@RequestBody ConnectAccountRequest connectAccountRequest) {
         try {
-            String accountUrl = stripeService.createConnectedAccount(connectAccountRequest);
+            String accountId = stripeService.createConnectedAccount(connectAccountRequest);
 
             // Create a JSON response with the paymentUrl
             Map<String, String> response = new HashMap<>();
 
-            response.put("accountUrl", accountUrl);
+            response.put("accountId", accountId);
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {

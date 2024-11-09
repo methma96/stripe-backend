@@ -17,6 +17,8 @@ public class Payment {
     private String status; // HELD, CAPTURED, REFUNDED
     private String stripeTransferId; // For payout tracking
 
+    private String chargeId;
+
     private String currency;
 
     public String getCurrency() {
@@ -35,6 +37,13 @@ public class Payment {
         this.id = id;
     }
 
+    public String getChargeId() {
+        return chargeId;
+    }
+
+    public void setChargeId(String chargeId) {
+        this.chargeId = chargeId;
+    }
 
     public String getJobId() {
         return jobId;
