@@ -7,6 +7,7 @@ import com.org.stripepaymentapp.model.Payment;
 import com.org.stripepaymentapp.model.SessionInfo;
 import com.org.stripepaymentapp.repository.JobRepository;
 import com.org.stripepaymentapp.repository.PaymentRepository;
+import com.org.stripepaymentapp.repository.ServiceRepository;
 import com.org.stripepaymentapp.repository.SessionInfoRepository;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
@@ -31,7 +32,6 @@ import java.util.UUID;
 public class StripeService {
 
 
-
     /**
      * Get the price ID from Stripe based on the product name.
      *
@@ -47,6 +47,9 @@ public class StripeService {
 
     @Autowired
     private PaymentRepository paymentRepository;
+
+    @Autowired
+    private ServiceRepository serviceRepository;
 
     @Autowired
     private SessionInfoRepository sessionInfoRepository;
@@ -94,10 +97,10 @@ public class StripeService {
 
     }
 
-    public String refundPayment(String chargeId, double amount){
+    public String refundPayment(String chargeId, double amount) {
 
         String refundId = "";
-        long amountInCents = (long) (amount * 100*0.8);  // Converts to cents
+        long amountInCents = (long) (amount * 100 * 0.8);  // Converts to cents
         try {
             // Define refund parameters
             RefundCreateParams refundParams = RefundCreateParams.builder()
@@ -116,9 +119,9 @@ public class StripeService {
         return refundId;
     }
 
-    public String reverseTransfer(String transferId , double amount) {
+    public String reverseTransfer(String transferId, double amount) {
         String reversalId = "";
-        long amountInCents = (long) (amount * 100*0.8);  // Converts to cents
+        long amountInCents = (long) (amount * 100 * 0.8);  // Converts to cents
         try {
             // Retrieve the original transfer
             Transfer transfer = Transfer.retrieve(transferId);
@@ -134,7 +137,7 @@ public class StripeService {
         return reversalId;
     }
 
-    public String createConnectedAccount(ConnectAccountRequest connectedAccountRequest){
+    public String createConnectedAccount(ConnectAccountRequest connectedAccountRequest) {
         String accountId = "";
         try {
             // Step 1: Create the connected account (already done in your method)
@@ -160,11 +163,7 @@ public class StripeService {
             Account account = Account.create(params);
             accountId = account.getId();
 
-            com.org.stripepaymentapp.model.Service service = new com.org.stripepaymentapp.model.Service();
-            service.setName(connectedAccountRequest.getServiceName());
-            service.setServiceProviderID(accountId);
-            service.setAmount(connectedAccountRequest.getAmount());
-            service.setCurrency(connectedAccountRequest.getCurrency());
+            createService(accountId, connectedAccountRequest);
 
             // Print or log successful setup
             System.out.println("Connected account activated with ID: " + account.getId() + " and bank account ID: ");
@@ -174,6 +173,17 @@ public class StripeService {
         }
 
         return accountId;
+    }
+
+    private void createService(String accountId, ConnectAccountRequest connectedAccountRequest) {
+
+        com.org.stripepaymentapp.model.Service service = new com.org.stripepaymentapp.model.Service();
+        service.setName(connectedAccountRequest.getServiceName());
+        service.setServiceProviderID(accountId);
+        service.setAmount(connectedAccountRequest.getAmount());
+        service.setCurrency(connectedAccountRequest.getCurrency());
+        serviceRepository.save(service);
+
     }
 
     public Map<String, Object> deleteAccounts(List<String> accountIds) {
@@ -196,7 +206,6 @@ public class StripeService {
         result.put("summary", Map.of("deleted", successCount, "failed", failureCount));
         return result;
     }
-
 
 
     public String activateAccount(String accountId) throws StripeException {
@@ -234,8 +243,8 @@ public class StripeService {
     }
 
 
-    private void updatePaymentInfo(PaymentLinkRequest paymentLinkRequest, Session session, String jobId){
-        Payment payment=new Payment();
+    private void updatePaymentInfo(PaymentLinkRequest paymentLinkRequest, Session session, String jobId) {
+        Payment payment = new Payment();
         payment.setSessionId(session.getId());
         payment.setAmount(paymentLinkRequest.getAmount());
         payment.setStatus("PENDING");
@@ -245,7 +254,7 @@ public class StripeService {
 
     }
 
-    private String updateJobInfo(PaymentLinkRequest paymentLinkRequest){
+    private String updateJobInfo(PaymentLinkRequest paymentLinkRequest) {
 
         Job newJob = new Job();
         newJob.setServiceProviderId(paymentLinkRequest.getServiceProviderId());
@@ -262,10 +271,9 @@ public class StripeService {
     }
 
 
-
     public String transferAmountToServiceProvider(String connectedAccountId, double amount, String currency) throws Exception {
         // Convert the amount to cents (Stripe expects the amount in the smallest currency unit)
-        long amountInCents = (long) (amount * 100*0.8);  // Converts to cents
+        long amountInCents = (long) (amount * 100 * 0.8);  // Converts to cents
 
         Map<String, Object> transferParams = new HashMap<>();
         transferParams.put("amount", amountInCents); // Amount in cents
