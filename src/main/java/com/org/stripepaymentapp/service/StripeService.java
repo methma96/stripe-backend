@@ -60,26 +60,37 @@ public class StripeService {
     @Transactional
     public String createPaymentLink(PaymentLinkRequest paymentLinkRequest) throws Exception {
 
+        long amountInCents = (long) (paymentLinkRequest.getAmount() * 100);
+
         SessionCreateParams params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
                 .setUiMode(SessionCreateParams.UiMode.EMBEDDED)
                 .setReturnUrl("http://localhost:4200/return?session_id={CHECKOUT_SESSION_ID}")
                 .addLineItem(
                         SessionCreateParams.LineItem.builder()
-                                .setPrice(paymentLinkRequest.getPriceId()) // Replace with your price ID
+                                .setPriceData(
+                                        SessionCreateParams.LineItem.PriceData.builder()
+                                                .setCurrency(paymentLinkRequest.getCurrency()) // Set your desired currency
+                                                .setProductData(
+                                                        SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                                                .setName(paymentLinkRequest.getJobName()) // Set product name
+                                                                .build()
+                                                )
+                                                .setUnitAmount(amountInCents) // Amount in cents (e.g., 10.00 USD = 1000)
+                                                .build()
+                                )
                                 .setQuantity(1L)
                                 .build()
                 )
                 .build();
 
-
         Session session = Session.create(params);
-
 
         String jobId = updateJobInfo(paymentLinkRequest);
         updatePaymentInfo(paymentLinkRequest, session, jobId);
 
         return session.getClientSecret();
+
 
     }
 
@@ -149,6 +160,12 @@ public class StripeService {
             Account account = Account.create(params);
             accountId = account.getId();
 
+            com.org.stripepaymentapp.model.Service service = new com.org.stripepaymentapp.model.Service();
+            service.setName(connectedAccountRequest.getServiceName());
+            service.setServiceProviderID(accountId);
+            service.setAmount(connectedAccountRequest.getAmount());
+            service.setCurrency(connectedAccountRequest.getCurrency());
+
             // Print or log successful setup
             System.out.println("Connected account activated with ID: " + account.getId() + " and bank account ID: ");
 
@@ -183,24 +200,36 @@ public class StripeService {
 
 
     public String activateAccount(String accountId) throws StripeException {
-        Map<String, Object> params = new HashMap<>();
-        params.put("account", accountId);
-
-        Map<String, Object> payments = new HashMap<>();
-        payments.put("enabled", true);
-
-        Map<String, Object> features = new HashMap<>();
-        features.put("refund_management", true);
-        features.put("dispute_management", true);
-        features.put("capture_payments", true);
-        payments.put("features", features);
-
-        Map<String, Object> components = new HashMap<>();
-        components.put("payments", payments);
-        params.put("components", components);
+        AccountSessionCreateParams params =
+                AccountSessionCreateParams.builder()
+                        .setAccount(accountId)
+                        .setComponents(
+                                AccountSessionCreateParams.Components.builder()
+                                        .setAccountOnboarding(
+                                                AccountSessionCreateParams.Components.AccountOnboarding.builder()
+                                                        .setEnabled(true)
+                                                        .build()
+                                        )
+                                        .setPayments(
+                                                AccountSessionCreateParams.Components.Payments.builder()
+                                                        .setEnabled(true)
+                                                        .build()
+                                        )
+                                        .setPayouts(
+                                                AccountSessionCreateParams.Components.Payouts.builder()
+                                                        .setEnabled(true)
+                                                        .build()
+                                        )
+                                        .setBalances(
+                                                AccountSessionCreateParams.Components.Balances.builder()
+                                                        .setEnabled(true)
+                                                        .build()
+                                        )
+                                        .build()
+                        )
+                        .build();
 
         AccountSession accountSession = AccountSession.create(params);
-
         return accountSession.getClientSecret();
     }
 

@@ -159,36 +159,6 @@ public class PaymentController {
 
     }
 
-    @PostMapping("/dispute")
-    public ResponseEntity<Map<String, String>> disputePayment(@RequestBody String jobId) {
 
-        try {
-            String refundId ="";
-            Optional<Payment> paymentList = paymentRepository.findByJobId(jobId);
-
-            if(paymentList.isPresent()){
-                Payment payment = paymentList.get();
-                String transferId= stripeService.reverseTransfer(payment.getStripeTransferId(), payment.getAmount());
-                if(transferId!=null){
-                    refundId= stripeService.refundPayment(payment.getChargeId(), payment.getAmount());
-                }
-            }
-
-            // Create a JSON response with the paymentUrl
-            Map<String, String> response = new HashMap<>();
-
-            response.put("refundId", refundId);
-
-
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            // Return an error message as JSON as well
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", e.getMessage());
-
-            return ResponseEntity.badRequest().body(errorResponse);
-        }
-
-    }
 
 }

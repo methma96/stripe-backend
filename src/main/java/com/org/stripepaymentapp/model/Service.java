@@ -11,7 +11,6 @@ public class Service {
 
     @Id
     private String id;
-    private String priceId;
     private String serviceProviderID;
 
     private String name;
@@ -35,13 +34,6 @@ public class Service {
         this.id = id;
     }
 
-    public String getPriceId() {
-        return priceId;
-    }
-
-    public void setPriceId(String priceId) {
-        this.priceId = priceId;
-    }
 
     public String getServiceProviderID() {
         return serviceProviderID;

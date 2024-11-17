@@ -10,6 +10,24 @@ public class ConnectAccountRequest {
     private String accountHolderName;
     private String accountNumber;
     private String routingNumber;
+    private String serviceName;
+    private double amount;
+
+    public String getServiceName() {
+        return serviceName;
+    }
+
+    public void setServiceName(String serviceName) {
+        this.serviceName = serviceName;
+    }
+
+    public double getAmount() {
+        return amount;
+    }
+
+    public void setAmount(double amount) {
+        this.amount = amount;
+    }
 
     public String getBankCountry() {
         return bankCountry;

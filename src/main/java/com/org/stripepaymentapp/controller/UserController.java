@@ -3,6 +3,7 @@ package com.org.stripepaymentapp.controller;
 import com.org.stripepaymentapp.dto.ConnectAccountRequest;
 import com.org.stripepaymentapp.service.StripeService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -37,4 +38,6 @@ public class UserController {
             return ResponseEntity.badRequest().body(errorResponse);
         }
     }
+
+
 }
