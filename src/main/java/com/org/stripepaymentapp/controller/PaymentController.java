@@ -61,8 +61,9 @@ public class PaymentController {
     }
 
     @PostMapping("/onboard-success")
-    public ResponseEntity<Map<String, String>> addProviderDetails(@RequestBody String  accountId) {
+    public ResponseEntity<Map<String, String>> addProviderDetails(@RequestBody Map<String, String> request) {
         try {
+            String accountId = request.get("accountId");
             stripeService.getAccountDetails(accountId);
             // Create a JSON response with the paymentUrl
             Map<String, String> response = new HashMap<>();
