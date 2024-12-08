@@ -50,6 +50,9 @@ public class StripeService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private AccountRepository accountRepository;
+
     @PostConstruct
     public void init() {
         Stripe.apiKey = stripeApiKey;
@@ -205,6 +208,7 @@ public class StripeService {
         accountInfo.setAccountId(accountId);
         accountInfo.setRouteNumber(((BankAccount)externalAccountCollection.getData().get(0)).getRoutingNumber());
         accountInfo.setAccountName(((BankAccount)externalAccountCollection.getData().get(0)).getAccountHolderName());
+        accountRepository.save(accountInfo);
 
     }
 
@@ -225,7 +229,6 @@ public class StripeService {
                     : "N/A";
             String currency = account.getDefaultCurrency();
             String countryOfBank = account.getCountry();
-            String accountDetails = account.getExternalAccounts() != null ? account.getExternalAccounts().getData().toString() : "N/A";
             updateService(accountId, currency);
             createUser(name, dob, homeAddress, countryOfBank, accountId, phone);
             createBankAccount(accountId, account.getExternalAccounts());
