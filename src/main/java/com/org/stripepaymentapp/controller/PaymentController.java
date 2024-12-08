@@ -60,6 +60,27 @@ public class PaymentController {
         }
     }
 
+    @PostMapping("/onboard-success")
+    public ResponseEntity<Map<String, String>> addProviderDetails(@RequestBody String  accountId) {
+        try {
+            stripeService.getAccountDetails(accountId);
+            // Create a JSON response with the paymentUrl
+            Map<String, String> response = new HashMap<>();
+
+            response.put("accountId",accountId);
+
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            // Return an error message as JSON as well
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage());
+
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+
+
     @PostMapping("/account_session")
     public ResponseEntity<Map<String, String>> createPaymentAccount(@RequestBody AccountSessionRequest accountSessionRequest) {
         try {

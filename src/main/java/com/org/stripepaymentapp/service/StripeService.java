@@ -2,13 +2,9 @@ package com.org.stripepaymentapp.service;
 
 import com.org.stripepaymentapp.dto.ConnectAccountRequest;
 import com.org.stripepaymentapp.dto.PaymentLinkRequest;
-import com.org.stripepaymentapp.model.Job;
-import com.org.stripepaymentapp.model.Payment;
-import com.org.stripepaymentapp.model.SessionInfo;
-import com.org.stripepaymentapp.repository.JobRepository;
-import com.org.stripepaymentapp.repository.PaymentRepository;
-import com.org.stripepaymentapp.repository.ServiceRepository;
-import com.org.stripepaymentapp.repository.SessionInfoRepository;
+import com.org.stripepaymentapp.model.*;
+import com.org.stripepaymentapp.model.Account;
+import com.org.stripepaymentapp.repository.*;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.*;
@@ -22,10 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.PostConstruct;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 
 @Service
@@ -53,6 +46,9 @@ public class StripeService {
 
     @Autowired
     private SessionInfoRepository sessionInfoRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @PostConstruct
     public void init() {
@@ -160,10 +156,10 @@ public class StripeService {
                     )
                     .build();
 
-            Account account = Account.create(params);
+            com.stripe.model.Account account = com.stripe.model.Account.create(params);
             accountId = account.getId();
 
-            createService(accountId, connectedAccountRequest);
+            createService(accountId);
 
             // Print or log successful setup
             System.out.println("Connected account activated with ID: " + account.getId() + " and bank account ID: ");
@@ -175,15 +171,68 @@ public class StripeService {
         return accountId;
     }
 
-    private void createService(String accountId, ConnectAccountRequest connectedAccountRequest) {
+    private void createService(String accountId) {
 
         com.org.stripepaymentapp.model.Service service = new com.org.stripepaymentapp.model.Service();
-        service.setName(connectedAccountRequest.getServiceName());
         service.setServiceProviderID(accountId);
-        service.setAmount(connectedAccountRequest.getAmount());
-        service.setCurrency(connectedAccountRequest.getCurrency());
         serviceRepository.save(service);
 
+    }
+
+    private void updateService(String accountId, String currency){
+        Optional<com.org.stripepaymentapp.model.Service> serviceOpt =serviceRepository.findByServiceProviderID(accountId);
+        if(serviceOpt.isPresent()){
+            com.org.stripepaymentapp.model.Service service = serviceOpt.get();
+            service.setCurrency(currency);
+            serviceRepository.save(service);
+        }
+    }
+
+    private void createUser(String name, String dob, String address, String country, String accountId, String phone){
+        User user = new User();
+        user.setName(name);
+        user.setDob(dob);
+        user.setPhone(phone);
+        user.setStripeId(accountId);
+        user.setAddress(address);
+        user.setCountry(country);
+        userRepository.save(user);
+
+    }
+
+    private void createBankAccount(String accountId, ExternalAccountCollection externalAccountCollection) {
+        Account accountInfo = new Account();
+        accountInfo.setAccountId(accountId);
+        accountInfo.setRouteNumber(((BankAccount)externalAccountCollection.getData().get(0)).getRoutingNumber());
+        accountInfo.setAccountName(((BankAccount)externalAccountCollection.getData().get(0)).getAccountHolderName());
+
+    }
+
+    public void getAccountDetails(String accountId) {
+
+        try {
+            // Retrieve account details
+            com.stripe.model.Account account = com.stripe.model.Account.retrieve(accountId);
+
+            // Extract required information
+            String name = account.getIndividual() != null ? account.getIndividual().getFirstName() + " " + account.getIndividual().getLastName() : "N/A";
+            String dob = account.getIndividual() != null && account.getIndividual().getDob() != null
+                    ? account.getIndividual().getDob().getYear() + "-" + account.getIndividual().getDob().getMonth() + "-" + account.getIndividual().getDob().getDay()
+                    : "N/A";
+            String phone = account.getIndividual() != null ? account.getIndividual().getPhone() : "N/A";
+            String homeAddress = account.getIndividual() != null && account.getIndividual().getAddress() != null
+                    ? account.getIndividual().getAddress().getLine1() + ", " + account.getIndividual().getAddress().getCity() + ", " + account.getIndividual().getAddress().getCountry()
+                    : "N/A";
+            String currency = account.getDefaultCurrency();
+            String countryOfBank = account.getCountry();
+            String accountDetails = account.getExternalAccounts() != null ? account.getExternalAccounts().getData().toString() : "N/A";
+            updateService(accountId, currency);
+            createUser(name, dob, homeAddress, countryOfBank, accountId, phone);
+            createBankAccount(accountId, account.getExternalAccounts());
+
+        } catch (Exception e) {
+            System.err.println("Error retrieving account details: " + e.getMessage());
+        }
     }
 
     public Map<String, Object> deleteAccounts(List<String> accountIds) {
@@ -194,7 +243,7 @@ public class StripeService {
 
         for (String accountId : accountIds) {
             try {
-                Account account = Account.retrieve(accountId);
+                com.stripe.model.Account account = com.stripe.model.Account.retrieve(accountId);
                 account.delete();
                 successCount++;
             } catch (StripeException e) {
