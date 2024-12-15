@@ -153,7 +153,8 @@ public class PaymentController {
     }
 
     @PostMapping("/refund")
-    public ResponseEntity<Map<String, String>> refundPayment(@RequestBody String jobId) {
+    public ResponseEntity<Map<String, String>> refundPayment(@RequestBody Map<String, String> request) {
+        String jobId = request.get("jobId");
 
         try {
             String refundId ="";

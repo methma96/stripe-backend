@@ -327,10 +327,18 @@ public class StripeService {
         // Convert the amount to cents (Stripe expects the amount in the smallest currency unit)
         long amountInCents = (long) (amount * 100 * 0.8);  // Converts to cents
 
+
+        double appCharge = amount * 100*0.2; // App charge in base currency
+
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("app_charge (20%)", String.valueOf(appCharge)); // Store app charge details
+
         Map<String, Object> transferParams = new HashMap<>();
         transferParams.put("amount", amountInCents); // Amount in cents
         transferParams.put("currency", currency);
         transferParams.put("destination", connectedAccountId);
+        transferParams.put("metadata", metadata);
+
 
         // Perform the transfer
         Transfer transfer = Transfer.create(transferParams);
