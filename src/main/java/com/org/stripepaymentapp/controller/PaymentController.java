@@ -11,6 +11,7 @@ import com.org.stripepaymentapp.service.StripeService;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.checkout.Session;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -46,19 +47,18 @@ public class PaymentController {
 
             // Create a JSON response with the paymentUrl
             Map<String, String> response = new HashMap<>();
-
             response.put("clientSecret", clientSecret);
-
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            // Return an error message as JSON as well
+            // Return an error message as JSON
             Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", e.getMessage());
+            errorResponse.put("error", "Payment link creation failed: " + e.getMessage());
 
-            return ResponseEntity.badRequest().body(errorResponse);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
+
 
     @PostMapping("/onboard-success")
     public ResponseEntity<Map<String, String>> addProviderDetails(@RequestBody Map<String, String> request) {

@@ -11,7 +11,7 @@ public class Job {
 
     @Id
     private String id;
-    private String priceId;
+//    private String priceId;
     private String serviceProviderId;
 
 
@@ -61,13 +61,13 @@ public class Job {
     }
 
 
-    public String getPriceId() {
-        return priceId;
-    }
-
-    public void setPriceId(String priceId) {
-        this.priceId = priceId;
-    }
+//    public String getPriceId() {
+//        return priceId;
+//    }
+//
+//    public void setPriceId(String priceId) {
+//        this.priceId = priceId;
+//    }
 
     public String getServiceProviderId() {
         return serviceProviderId;

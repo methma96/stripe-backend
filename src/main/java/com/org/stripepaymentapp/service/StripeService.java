@@ -64,37 +64,40 @@ public class StripeService {
 
         long amountInCents = (long) (paymentLinkRequest.getAmount() * 100);
 
-        SessionCreateParams params = SessionCreateParams.builder()
-                .setMode(SessionCreateParams.Mode.PAYMENT)
-                .setUiMode(SessionCreateParams.UiMode.EMBEDDED)
-                .setReturnUrl("http://localhost:4200/return?session_id={CHECKOUT_SESSION_ID}")
-                .addLineItem(
-                        SessionCreateParams.LineItem.builder()
-                                .setPriceData(
-                                        SessionCreateParams.LineItem.PriceData.builder()
-                                                .setCurrency(paymentLinkRequest.getCurrency()) // Set your desired currency
-                                                .setProductData(
-                                                        SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                                                .setName(paymentLinkRequest.getJobName()) // Set product name
-                                                                .build()
-                                                )
-                                                .setUnitAmount(amountInCents) // Amount in cents (e.g., 10.00 USD = 1000)
-                                                .build()
-                                )
-                                .setQuantity(1L)
-                                .build()
-                )
-                .build();
+        try {
+            SessionCreateParams params = SessionCreateParams.builder()
+                    .setMode(SessionCreateParams.Mode.PAYMENT)
+                    .setUiMode(SessionCreateParams.UiMode.EMBEDDED)
+                    .setReturnUrl("http://localhost:4200/return?session_id={CHECKOUT_SESSION_ID}")
+                    .addLineItem(
+                            SessionCreateParams.LineItem.builder()
+                                    .setPriceData(
+                                            SessionCreateParams.LineItem.PriceData.builder()
+                                                    .setCurrency(paymentLinkRequest.getCurrency())
+                                                    .setProductData(
+                                                            SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                                                    .setName(paymentLinkRequest.getJobName())
+                                                                    .build()
+                                                    )
+                                                    .setUnitAmount(amountInCents)
+                                                    .build()
+                                    )
+                                    .setQuantity(1L)
+                                    .build()
+                    )
+                    .build();
 
-        Session session = Session.create(params);
+            Session session = Session.create(params);
 
-        String jobId = updateJobInfo(paymentLinkRequest);
-        updatePaymentInfo(paymentLinkRequest, session, jobId);
+            String jobId = updateJobInfo(paymentLinkRequest);
+            updatePaymentInfo(paymentLinkRequest, session, jobId);
 
-        return session.getClientSecret();
-
-
+            return session.getClientSecret();
+        } catch (Exception e) {
+            throw new Exception("Failed to create payment link: " + e.getMessage(), e);
+        }
     }
+
 
     public String refundPayment(String chargeId, double amount) {
 
@@ -310,7 +313,7 @@ public class StripeService {
 
         Job newJob = new Job();
         newJob.setServiceProviderId(paymentLinkRequest.getServiceProviderId());
-        newJob.setPriceId(paymentLinkRequest.getPriceId());
+//        newJob.setPriceId(paymentLinkRequest.getPriceId());
         newJob.setStatus("PENDING");
         newJob.setPaymentStatus("PENDING");
         newJob.setAmount(paymentLinkRequest.getAmount());
@@ -324,28 +327,39 @@ public class StripeService {
 
 
     public String transferAmountToServiceProvider(String connectedAccountId, double amount, String currency) throws Exception {
-        // Convert the amount to cents (Stripe expects the amount in the smallest currency unit)
-        long amountInCents = (long) (amount * 100 * 0.8);  // Converts to cents
 
+        long amountInCents = (long) (amount * 100);
+        long applicationFeeInCents = (long) (amountInCents * 0.2); // 20% platform fee
 
-        double appCharge = amount * 100*0.2; // App charge in base currency
+        try {
+            // Create a PaymentIntent with transfer data and application fee
+            PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
+                    .setAmount(amountInCents) // Total amount in the smallest currency unit
+                    .setCurrency(currency)
+                    .setConfirm(true) // Automatically confirm the PaymentIntent
+                    .setDescription("Provider Fee") // Payment description
+                    .setAutomaticPaymentMethods(
+                    PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
+                            .setEnabled(true)
+                            .build()
+            )
+                    .setTransferData(
+                            PaymentIntentCreateParams.TransferData.builder()
+                                    .setDestination(connectedAccountId) // Specify connected account ID
+                                    .build()
+                    )
+                    .setApplicationFeeAmount(applicationFeeInCents) // App fee in smallest currency unit
+                    .build();
 
-        Map<String, String> metadata = new HashMap<>();
-        metadata.put("app_charge (20%)", String.valueOf(appCharge)); // Store app charge details
+            // Create the PaymentIntent
+            PaymentIntent paymentIntent = PaymentIntent.create(params);
 
-        Map<String, Object> transferParams = new HashMap<>();
-        transferParams.put("amount", amountInCents); // Amount in cents
-        transferParams.put("currency", currency);
-        transferParams.put("destination", connectedAccountId);
-        transferParams.put("metadata", metadata);
+            return paymentIntent.getId(); // Return PaymentIntent ID for frontend
+        } catch (Exception e) {
+            throw new Exception("Failed to create payment intent: " + e.getMessage(), e);
+        }
 
-
-        // Perform the transfer
-        Transfer transfer = Transfer.create(transferParams);
-
-        // Get and return the transfer ID
-        String transferId = transfer.getId();
-        System.out.println("Transfer created with ID: " + transferId);
-        return transferId;
     }
+
+
 }
