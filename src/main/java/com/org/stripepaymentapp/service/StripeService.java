@@ -194,9 +194,10 @@ public class StripeService {
         }
     }
 
-    private void createUser(String name, String dob, String address, String country, String accountId, String phone){
+    private void createUser(String name, String dob, String address, String country, String accountId, String phone, String accountType){
         User user = new User();
         user.setName(name);
+        user.setAccountType(accountType);
         user.setDob(dob);
         user.setPhone(phone);
         user.setStripeId(accountId);
@@ -216,10 +217,10 @@ public class StripeService {
     }
 
     public void getAccountDetails(String accountId) {
-
         try {
             // Retrieve account details
             com.stripe.model.Account account = com.stripe.model.Account.retrieve(accountId);
+            String accountType = account.getType();
 
             // Extract required information
             String name = account.getIndividual() != null ? account.getIndividual().getFirstName() + " " + account.getIndividual().getLastName() : "N/A";
@@ -233,8 +234,28 @@ public class StripeService {
             String currency = account.getDefaultCurrency();
             String countryOfBank = account.getCountry();
             updateService(accountId, currency);
-            createUser(name, dob, homeAddress, countryOfBank, accountId, phone);
-            createBankAccount(accountId, account.getExternalAccounts());
+            createUser(name, dob, homeAddress, countryOfBank, accountId, phone, accountType);
+            for (com.stripe.model.ExternalAccount externalAccount : account.getExternalAccounts().getData()) {
+                if (externalAccount instanceof com.stripe.model.BankAccount) {
+                    com.stripe.model.BankAccount bankAccount = (com.stripe.model.BankAccount) externalAccount;
+
+                    // Check if the bank account is unverified and verify it
+                    if ("new".equals(bankAccount.getStatus())) {
+                        // Attempt verification
+                        try {
+                            bankAccount = bankAccount.verify();
+                            System.out.println("Bank account verified: " + bankAccount.getId());
+                        } catch (Exception verifyException) {
+                            System.err.println("Error verifying bank account: " + verifyException.getMessage());
+                        }
+                    } else {
+                        System.out.println("Bank account already verified: " + bankAccount.getId());
+                    }
+
+                    // Add logic to create bank account in your system
+                    createBankAccount(accountId, account.getExternalAccounts());
+                }
+            }
 
         } catch (Exception e) {
             System.err.println("Error retrieving account details: " + e.getMessage());

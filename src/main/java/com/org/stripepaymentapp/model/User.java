@@ -19,6 +19,15 @@ public class User {
     private String address;
     private String phone;
     private String country;
+    private String accountType;
+
+    public String getAccountType() {
+        return accountType;
+    }
+
+    public void setAccountType(String accountType) {
+        this.accountType = accountType;
+    }
 
 
     public String getDob() {
